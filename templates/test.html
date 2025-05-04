@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Gemini API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        .button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .button:hover { background-color: #45a049; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .loading { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DreamClass - Evren Bazlı Eğitim</h1>
+        
+        <form id="generateForm">
+            <div class="form-group">
+                <label for="universe">Evren:</label>
+                <input type="text" id="universe" name="universe" placeholder="Örnek: Bilim Evreni" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="topic">Konu:</label>
+                <input type="text" id="topic" name="topic" placeholder="Örnek: Photosynthesis" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="level">Sınıf:</label>
+                <select id="level" name="level" required>
+                    <option value="5">5. Sınıf</option>
+                    <option value="6">6. Sınıf</option>
+                    <option value="7">7. Sınıf</option>
+                    <option value="8">8. Sınıf</option>
+                    <option value="9">9. Sınıf</option>
+                    <option value="10">10. Sınıf</option>
+                    <option value="11">11. Sınıf</option>
+                    <option value="12">12. Sınıf</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="button">İçerik Üret</button>
+            <div class="loading">
+                <img src="https://via.placeholder.com/30" alt="Loading">
+                <span>Loading...</span>
+            </div>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        // Cevap göster/gizle fonksiyonu
+        function showAnswer(index) {
+            const answerDiv = document.getElementById(`answer-${index}`);
+            const button = document.querySelector(`[onclick='showAnswer(${index})']`);
+            
+            if (answerDiv.style.display === 'none') {
+                answerDiv.style.display = 'block';
+                button.textContent = 'Cevabı Gizle';
+            } else {
+                answerDiv.style.display = 'none';
+                button.textContent = 'Cevabı Göster';
+            }
+        }
+
+        document.getElementById('generateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Loading göster
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.button').disabled = true;
+            
+            try {
+                const formData = {
+                    universe: document.getElementById('universe').value,
+                    topic: document.getElementById('topic').value,
+                    level: document.getElementById('level').value
+                };
+
+                if (!formData.universe || !formData.topic || !formData.level) {
+                    throw new Error('Tüm alanlar zorunludur!');
+                }
+
+                const response = await fetch('http://localhost:5000/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('result').innerHTML = `
+                        <div style="color: red;">
+                            <h3>Hata:</h3>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                } else {
+                    try {
+                        const content = data.content;
+                        document.getElementById('result').innerHTML = `
+                            <h3>İçerik:</h3>
+                            <div style="margin: 10px;">
+                                <h4>Hikaye:</h4>
+                                <p>${content.story}</p>
+                                
+                                <h4>Konu Testi:</h4>
+                                <div id="quiz-container">
+                                    ${content.quiz.map((q, index) => `
+                                        <div class="question-container" style="margin: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <h5>Soru ${index + 1}:</h5>
+                                            <p><strong>Soru:</strong> ${q.question}</p>
+                                            <button onclick="showAnswer(${index})" class="show-answer-btn" style="margin-top: 10px; padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                                Cevabı Göster
+                                            </button>
+                                            <div id="answer-${index}" style="display: none; margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">
+                                                <strong>Cevap:</strong> ${q.answer}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <h4>Görsel Fikir:</h4>
+                                <p>${content.visualIdea}</p>
+                            </div>
+                        `;
+                    } catch (e) {
+                        document.getElementById('result').innerHTML = `
+                            <h3>AI Yanıtı:</h3>
+                            <p>Yanıt formatı beklenen formatta değil: ${e.message}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        `;
+                    }
+                }
+
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div style="color: red;">
+                        <h3>Hata:</h3>
+                        <p>${error.message}</p>
+                        <p style="font-size: 0.9em; color: #666;">Lütfen Google Cloud Console'da şu adımları kontrol edin:</p>
+                        <ul style="list-style-type: none; padding-left: 20px;">
+                            <li>• API anahtarınızın kısıtlamalarını kontrol edin</li>
+                            <li>• Generative Language API'nin etkin olduğundan emin olun</li>
+                            <li>• Mevcut modelleri kontrol edin</li>
+                        </ul>
+                    </div>
+                `;
+            } finally {
+                // Loading gizle
+                document.querySelector('.loading').style.display = 'none';
+                document.querySelector('.button').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

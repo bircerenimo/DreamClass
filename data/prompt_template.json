@@ -1,0 +1,13 @@
+{
+    "template": "Create an engaging lesson about {topic} in the universe of {universe} for grade {grade}.",
+    "requirements": [
+        "Create a story that explains {topic} using {universe} characters and concepts",
+        "Include 3-5 multiple choice questions about the story",
+        "Suggest 1-2 visual elements (images/animations) that would enhance understanding"
+    ],
+    "response_format": {
+        "story": "",
+        "quiz": [],
+        "visual_elements": []
+    }
+}

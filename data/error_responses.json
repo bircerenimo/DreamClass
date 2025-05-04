@@ -1,0 +1,9 @@
+{
+    "missing_fields": "Missing required fields: universe, topic, grade",
+    "api_error": "API call failed",
+    "invalid_json": "Invalid JSON response from API",
+    "cache_error": "Cache operation failed",
+    "image_generation_error": "Failed to generate image",
+    "invalid_input": "Invalid input format",
+    "internal_error": "Internal server error"
+}

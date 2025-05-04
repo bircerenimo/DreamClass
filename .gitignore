@@ -1,0 +1,6 @@
+# Sensitive files
+.credentials.json
+.env
+
+# Large installer files
+GoogleCloudSDKInstaller.exe
