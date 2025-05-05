@@ -1,6 +1,66 @@
-# Sensitive files
-.credentials.json
-.env
+# -------------------------------
+# Python derleme ve önbellek dosyaları
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 
-# Large installer files
-GoogleCloudSDKInstaller.exe
+# Bytecode cache
+*.pyc
+*.pkl
+*.joblib
+
+# -------------------------------
+# Sanal ortam (virtualenv, venv)
+venv/
+ENV/
+env/
+.venv/
+
+# -------------------------------
+# Ortam dosyaları
+*.env
+.env.*
+
+# -------------------------------
+# VSCode, PyCharm gibi IDE ayar klasörleri
+.vscode/
+.idea/
+
+# -------------------------------
+# Log dosyaları
+*.log
+
+# -------------------------------
+# Çıktı klasörleri, geçici dosyalar
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+
+# -------------------------------
+# Jupyter / Colab / IPython
+.ipynb_checkpoints/
+*.ipynb
+
+# -------------------------------
+# Test çıktı dosyaları
+htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+
+# -------------------------------
+# TensorBoard / ML çıktıları (isteğe bağlı)
+runs/
+checkpoints/
+output/
+
+# -------------------------------
+# Pip freeze cache
+pip-wheel-metadata/
+
+# -------------------------------
+# Local db veya sqlite dosyaları (eğer varsa)
+*.sqlite3
+*.db
