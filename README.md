@@ -1,7 +1,7 @@
 🌟 DreamClass - Grup 27 Hackathon Projesi
 
 Bu proje, [Hackathon Adı] kapsamında Grup 27 tarafından geliştirilmiştir. DreamClass, öğrenciler için hayal gücüne dayalı, kişiselleştirilmiş ve etkileşimli ders deneyimleri sunan yapay zeka destekli bir eğitim platformudur. Uygulama, Google Gemini API ile çalışmakta olup hikâyeleştirme, içerik üretimi ve quiz gibi eğitim materyalleri üretmektedir.
-
+->Proje master branch kısmında mevcut. 
 ---
 
 ## 📁 .env Dosyası Kurulumu
