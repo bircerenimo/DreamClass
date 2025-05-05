@@ -1,14 +1,20 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, send_from_directory
+import os
 from config import HOST, PORT, DEBUG
 from api.generate import api
 from services.lesson_service import lesson_service
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.abspath('templates'))
+app.config['JSON_AS_ASCII'] = False  # Türkçe karakter desteği için
 app.register_blueprint(api)
 
 @app.route('/')
 def hello():
-    return 'DreamClass Backend is running!'
+    return render_template('test.html')
+
+@app.route('/api')
+def api_info():
+    return 'DreamClass Backend API is running!'
 
 @app.route('/api/generate', methods=['POST'])
 async def generate():

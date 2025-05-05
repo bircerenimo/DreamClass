@@ -1,34 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Test Gemini API</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DreamClass - Evren Bazlı Eğitim</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .form-group { margin-bottom: 15px; }
-        .button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
         .button:hover { background-color: #45a049; }
+        .button:disabled { background-color: #cccccc; cursor: not-allowed; }
         .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
-        .loading { display: none; }
+        .loading { display: none; margin-left: 10px; align-items: center; }
+        .loading span { margin-left: 5px; }
+        .story-container { background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .quiz-container { margin-top: 20px; }
+        .question-container { background-color: #f0f8ff; padding: 15px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #4CAF50; }
+        .answer-input { width: 100%; padding: 8px; margin-top: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .evaluation-container { margin-top: 20px; padding: 15px; background-color: #fffaf0; border-radius: 8px; border-left: 4px solid #ffa500; }
+        .correct { color: green; font-weight: bold; }
+        .incorrect { color: red; font-weight: bold; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>DreamClass - Evren Bazlı Eğitim</h1>
+        <h1>🌟 DreamClass - Evren Bazlı Eğitim</h1>
         
         <form id="generateForm">
             <div class="form-group">
-                <label for="universe">Evren:</label>
-                <input type="text" id="universe" name="universe" placeholder="Örnek: Bilim Evreni" required>
+                <label for="universe">✨ Evren:</label>
+                <input type="text" id="universe" name="universe" placeholder="Örnek: Minecraft, Harry Potter, Star Wars..." required>
             </div>
             
             <div class="form-group">
-                <label for="topic">Konu:</label>
-                <input type="text" id="topic" name="topic" placeholder="Örnek: Photosynthesis" required>
+                <label for="topic">📚 Konu:</label>
+                <input type="text" id="topic" name="topic" placeholder="Örnek: Enerji dönüşümü, Basit makineler..." required>
             </div>
             
             <div class="form-group">
-                <label for="level">Sınıf:</label>
+                <label for="level">🎓 Sınıf:</label>
                 <select id="level" name="level" required>
                     <option value="5">5. Sınıf</option>
                     <option value="6">6. Sınıf</option>
@@ -41,36 +55,57 @@
                 </select>
             </div>
             
-            <button type="submit" class="button">İçerik Üret</button>
+            <button type="submit" class="button">🚀 İçerik Üret</button>
             <div class="loading">
                 <img src="https://via.placeholder.com/30" alt="Loading">
-                <span>Loading...</span>
+                <span>Yükleniyor...</span>
             </div>
         </form>
         
-        <div id="result" class="result"></div>
+        <div id="result" class="result hidden"></div>
+        
+        <!-- Hikaye ve Quiz Bölümü -->
+        <div id="storyContainer" class="hidden">
+            <div class="story-container">
+                <h3>📖 Hikaye</h3>
+                <div id="storyContent"></div>
+            </div>
+            
+            <div class="quiz-container">
+                <h3>❓ Sorular</h3>
+                <div id="quizContent"></div>
+                
+                <button id="evaluateButton" class="button">✅ Cevapları Değerlendir</button>
+                <div id="evaluationLoading" class="loading">
+                    <img src="https://via.placeholder.com/30" alt="Loading">
+                    <span>Değerlendiriliyor...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Değerlendirme Sonuçları -->
+        <div id="evaluationContainer" class="evaluation-container hidden">
+            <h3>📊 Değerlendirme Sonuçları</h3>
+            <div id="evaluationContent"></div>
+        </div>
     </div>
 
     <script>
-        // Cevap göster/gizle fonksiyonu
-        function showAnswer(index) {
-            const answerDiv = document.getElementById(`answer-${index}`);
-            const button = document.querySelector(`[onclick='showAnswer(${index})']`);
-            
-            if (answerDiv.style.display === 'none') {
-                answerDiv.style.display = 'block';
-                button.textContent = 'Cevabı Gizle';
-            } else {
-                answerDiv.style.display = 'none';
-                button.textContent = 'Cevabı Göster';
-            }
-        }
-
+        // Global değişkenler
+        let currentQuiz = [];
+        let currentUniverse = "";
+        let currentTopic = "";
+        let currentLevel = "";
+        
+        // İçerik üretme formu
         document.getElementById('generateForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            // Değerlendirme sonuçlarını gizle (eğer önceden gösterilmişse)
+            document.getElementById('evaluationContainer').classList.add('hidden');
+            
             // Loading göster
-            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.loading').style.display = 'flex';
             document.querySelector('.button').disabled = true;
             
             try {
@@ -79,6 +114,11 @@
                     topic: document.getElementById('topic').value,
                     level: document.getElementById('level').value
                 };
+
+                // Global değişkenlere kaydet
+                currentUniverse = formData.universe;
+                currentTopic = formData.topic;
+                currentLevel = formData.level;
 
                 if (!formData.universe || !formData.topic || !formData.level) {
                     throw new Error('Tüm alanlar zorunludur!');
@@ -100,44 +140,21 @@
                 const data = await response.json();
 
                 if (data.error) {
+                    document.getElementById('result').classList.remove('hidden');
                     document.getElementById('result').innerHTML = `
                         <div style="color: red;">
-                            <h3>Hata:</h3>
-                            <p>${data.message}</p>
+                            <h3>⚠️ Hata:</h3>
+                            <p>${data.message || data.error}</p>
                         </div>
                     `;
                 } else {
                     try {
-                        const content = data.content;
-                        document.getElementById('result').innerHTML = `
-                            <h3>İçerik:</h3>
-                            <div style="margin: 10px;">
-                                <h4>Hikaye:</h4>
-                                <p>${content.story}</p>
-                                
-                                <h4>Konu Testi:</h4>
-                                <div id="quiz-container">
-                                    ${content.quiz.map((q, index) => `
-                                        <div class="question-container" style="margin: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                                            <h5>Soru ${index + 1}:</h5>
-                                            <p><strong>Soru:</strong> ${q.question}</p>
-                                            <button onclick="showAnswer(${index})" class="show-answer-btn" style="margin-top: 10px; padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                                Cevabı Göster
-                                            </button>
-                                            <div id="answer-${index}" style="display: none; margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">
-                                                <strong>Cevap:</strong> ${q.answer}
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                
-                                <h4>Görsel Fikir:</h4>
-                                <p>${content.visualIdea}</p>
-                            </div>
-                        `;
+                        // Hikaye ve soruları göster
+                        displayStoryAndQuiz(data);
                     } catch (e) {
+                        document.getElementById('result').classList.remove('hidden');
                         document.getElementById('result').innerHTML = `
-                            <h3>AI Yanıtı:</h3>
+                            <h3>⚠️ AI Yanıtı:</h3>
                             <p>Yanıt formatı beklenen formatta değil: ${e.message}</p>
                             <pre>${JSON.stringify(data, null, 2)}</pre>
                         `;
@@ -145,15 +162,16 @@
                 }
 
             } catch (error) {
+                document.getElementById('result').classList.remove('hidden');
                 document.getElementById('result').innerHTML = `
                     <div style="color: red;">
-                        <h3>Hata:</h3>
+                        <h3>⚠️ Hata:</h3>
                         <p>${error.message}</p>
-                        <p style="font-size: 0.9em; color: #666;">Lütfen Google Cloud Console'da şu adımları kontrol edin:</p>
+                        <p style="font-size: 0.9em; color: #666;">Lütfen şunları kontrol edin:</p>
                         <ul style="list-style-type: none; padding-left: 20px;">
-                            <li>• API anahtarınızın kısıtlamalarını kontrol edin</li>
-                            <li>• Generative Language API'nin etkin olduğundan emin olun</li>
-                            <li>• Mevcut modelleri kontrol edin</li>
+                            <li>• API anahtarınızın doğru olduğundan emin olun</li>
+                            <li>• Sunucunun çalıştığından emin olun</li>
+                            <li>• İnternet bağlantınızı kontrol edin</li>
                         </ul>
                     </div>
                 `;
@@ -163,6 +181,150 @@
                 document.querySelector('.button').disabled = false;
             }
         });
+        
+        // Hikaye ve soruları gösterme fonksiyonu
+        function displayStoryAndQuiz(data) {
+            // Sonuç bölümünü gizle
+            document.getElementById('result').classList.add('hidden');
+            
+            // Hikaye içeriğini göster
+            const storyContainer = document.getElementById('storyContainer');
+            storyContainer.classList.remove('hidden');
+            
+            // Hikaye içeriğini doldur
+            document.getElementById('storyContent').innerHTML = data.story || data.content?.story || "";
+            
+            // Quiz içeriğini doldur
+            const quizContent = document.getElementById('quizContent');
+            const quizData = data.quiz || data.content?.quiz || [];
+            currentQuiz = quizData.slice(0, 3); // Sadece ilk 3 soruyu al
+            
+            let quizHtml = '';
+            currentQuiz.forEach((q, index) => {
+                quizHtml += `
+                    <div class="question-container" id="question-${index}">
+                        <h4>Soru ${index + 1}:</h4>
+                        <p>${q.question}</p>
+                        <textarea 
+                            id="answer-${index}" 
+                            class="answer-input" 
+                            placeholder="Cevabınızı buraya yazın..."
+                            rows="3"
+                        ></textarea>
+                    </div>
+                `;
+            });
+            
+            quizContent.innerHTML = quizHtml;
+        }
+        
+        // Cevapları değerlendirme
+        document.getElementById('evaluateButton').addEventListener('click', async function() {
+            // Değerlendirme yükleniyor göstergesini göster
+            const evalLoading = document.getElementById('evaluationLoading');
+            evalLoading.style.display = 'flex';
+            this.disabled = true;
+            
+            try {
+                // Cevapları topla
+                const answers = {};
+                for (let i = 0; i < Math.min(currentQuiz.length, 3); i++) {
+                    answers[`cevap${i+1}`] = document.getElementById(`answer-${i}`).value || "Cevap verilmedi";
+                }
+                
+                // API'ye gönder
+                const response = await fetch('http://localhost:5000/api/evaluate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(answers)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Değerlendirme hatası: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Değerlendirme sonuçlarını göster
+                displayEvaluation(data.evaluation || data.result || data);
+                
+            } catch (error) {
+                document.getElementById('evaluationContainer').classList.remove('hidden');
+                document.getElementById('evaluationContent').innerHTML = `
+                    <div style="color: red;">
+                        <h3>⚠️ Değerlendirme Hatası:</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                // Yükleniyor göstergesini gizle ve butonu tekrar aktif et
+                evalLoading.style.display = 'none';
+                this.disabled = false;
+            }
+        });
+        
+        // Değerlendirme sonuçlarını gösterme fonksiyonu
+        function displayEvaluation(evaluationData) {
+            const container = document.getElementById('evaluationContainer');
+            const content = document.getElementById('evaluationContent');
+            
+            container.classList.remove('hidden');
+            
+            // Metin formatında gelen değerlendirmeyi işle
+            if (typeof evaluationData === 'string') {
+                // Değerlendirme metnini ayrıştır
+                const lines = evaluationData.split('\n');
+                let html = '';
+                let currentQuestion = 0;
+                
+                for (const line of lines) {
+                    // Soru başlığını bul
+                    if (line.match(/^\d+\)\s+Soru:/)) {
+                        currentQuestion++;
+                        html += `<div class="question-evaluation">`;
+                        html += `<h4>${line}</h4>`;
+                    }
+                    // Değerlendirme sonucunu bul ve renklendir
+                    else if (line.includes('Değerlendirme:')) {
+                        if (line.includes('✅') || line.includes('Doğru')) {
+                            html += `<p class="correct">${line}</p>`;
+                        } else if (line.includes('❌') || line.includes('Yanlış')) {
+                            html += `<p class="incorrect">${line}</p>`;
+                        } else {
+                            html += `<p>${line}</p>`;
+                        }
+                    }
+                    // Genel değerlendirme bölümü
+                    else if (line.includes('Genel Değerlendirme:')) {
+                        html += `</div><div class="general-evaluation"><h4>${line}</h4>`;
+                    }
+                    // Diğer satırlar
+                    else if (line.trim()) {
+                        html += `<p>${line}</p>`;
+                    }
+                    
+                    // Soru değerlendirmesini kapat
+                    if (currentQuestion > 0 && line.trim() === '' && !html.endsWith('</div>')) {
+                        html += `</div>`;
+                    }
+                }
+                
+                // Son div'i kapat
+                if (!html.endsWith('</div>')) {
+                    html += `</div>`;
+                }
+                
+                content.innerHTML = html;
+            } else {
+                // JSON formatında gelen değerlendirmeyi işle
+                content.innerHTML = `<pre>${JSON.stringify(evaluationData, null, 2)}</pre>`;
+            }
+            
+            // Değerlendirme bölümüne kaydır
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
     </script>
 </body>
 </html>

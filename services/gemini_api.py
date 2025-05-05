@@ -44,13 +44,20 @@ class GeminiAPI:
             
             # Modeli oluştur
             try:
-                self.model = genai.GenerativeModel("gemini-1.5-pro")
-                logger.info("Created Gemini model instance")
+                # Hikaye oluşturma için model
+                self.story_model = genai.GenerativeModel("gemini-1.5-flash")
+                # Değerlendirme için model
+                self.evaluation_model = genai.GenerativeModel("gemini-1.5-flash")
+                logger.info("Created Gemini model instances")
                 
                 # Modelin çalışıp çalışmadığını test et
                 test_prompt = "Test prompt"
-                test_response = self.model.generate_content(test_prompt)
+                test_response = self.story_model.generate_content(test_prompt)
                 logger.info("Test model response successful")
+                
+                # Prompt şablonlarını yükle
+                self.load_prompt_templates()
+                
             except Exception as e:
                 logger.error(f"Error creating or testing model: {str(e)}")
                 raise ValueError(f"Failed to create or test model: {str(e)}")
@@ -58,8 +65,28 @@ class GeminiAPI:
         except Exception as e:
             logger.error(f"Initialization error: {str(e)}")
             raise ValueError(f"Failed to initialize Gemini API: {str(e)}")
+            
+    def load_prompt_templates(self):
+        """Prompt şablonlarını yükler"""
+        try:
+            # Hikaye oluşturma şablonu
+            with open("data/dynamic_prompt_template.json", "r", encoding="utf-8") as f:
+                self.story_template = json.load(f)["prompt_template"]
+            logger.info("Loaded story prompt template")
+            
+            # Değerlendirme şablonu
+            with open("data/evaluate_prompt_template.json", "r", encoding="utf-8") as f:
+                self.evaluation_template = json.load(f)["prompt_template"]
+            logger.info("Loaded evaluation prompt template")
+            
+        except Exception as e:
+            logger.error(f"Error loading prompt templates: {str(e)}")
+            raise ValueError(f"Failed to load prompt templates: {str(e)}")
 
-    def generate_content(self, data):
+    def generate_story(self, data):
+        """
+        İlk LLM: Öğrencinin evren, konu ve sınıf seviyesine göre hikaye ve sorular oluşturur
+        """
         try:
             # Gerekli verilerin varlığını kontrol et
             required_fields = ['level', 'universe', 'topic']
@@ -67,108 +94,149 @@ class GeminiAPI:
                 if field not in data:
                     raise ValueError(f"Missing required field: {field}")
             
-            # Prompt oluşturma
-            prompt = f"""
-            Sen bir eğitim asistanısın. Türkçe olarak cevap ver.
+            # Prompt şablonunu doldur
+            prompt = self.story_template.replace("{{evren}}", data['universe'])\
+                                      .replace("{{konu}}", data['topic'])\
+                                      .replace("{{seviye}}", data['level'])
             
-            Evren: {data['universe']}
-            Konu: {data['topic']}
-            Sınıf Seviyesi: {data['level']}. Sınıf
-            
-            Sınıf seviyesine göre zorluk seviyesi:
-            - 5-6. Sınıf: Temel kavramlar, basit örnekler ve uygulamalar
-            - 7-8. Sınıf: Orta seviye kavramlar, daha detaylı örnekler
-            - 9-10. Sınıf: İleri seviye kavramlar, karmaşık örnekler
-            - 11-12. Sınıf: Derinlemesine analiz, teorik açıklamalar ve pratik uygulamalar
-            
-            Lütfen şu formatı kullanarak eğitim içeriği oluştur:
-            
-            1. Hikaye:
-            - {data['universe']} evrenindeki {data['topic']} konusunu {data['level']}. sınıf seviyesine uygun detaylı bir şekilde anlat
-            - Evrenin özelliklerini ve konuyu birleştiren örnekler kullan
-            - Sınıf seviyesine göre uygun terimler ve kavramlar kullan
-            - {data['level']} sınıf seviyesine göre uygun zorlukta detaylar
-            
-            2. Sorular:
-            - 5 tane kısa cevap sorusu oluştur
-            - Her sorunun detaylı açıklamasını ve çözüm adımlarını ekleyin
-            - Sınıf seviyesine göre uygun zorlukta sorular oluştur:
-            - 5-6. Sınıf: Temel bilgileri test eden sorular
-            - 7-8. Sınıf: Uygulama ve analiz gerektiren sorular
-            - 9-10. Sınıf: Karmaşık durumları çözen sorular
-            - 11-12. Sınıf: Derinlemesine analiz ve kritik düşünme gerektiren sorular
-            - Evren ve konu arasındaki bağlantıları vurgulayan sorular
-            
-            3. Görsel Fikir:
-            - Konuyu ve evreni görsel olarak temsil eden bir fikir
-            - Sınıf seviyesine uygun detay seviyesi
-            - Öğrencilerin anlayabilecekleri görsel öğeler
-            
-            Sadece JSON formatında cevap ver. JSON yapısı:
-            {{
-                "story": "Konu hakkında detaylı bir hikaye",
-                "quiz": [
-                    {{
-                        "question": "Soru metni",
-                        "answer": "Doğru cevap",
-                        "explanation": "Sorunun çözümü ve açıklama"
-                    }}
-                ],
-                "visualIdea": "Konuyu görsel olarak temsil etme fikri"
-            }}
-            
-            JSON yapısının dışında herhangi bir açıklama veya metin eklemeyin.
-            Sadece JSON nesnesini döndürün.
-            """
-            
-            logger.info(f"Generating content with prompt: {prompt[:50]}...")
+            logger.info(f"Generating story with prompt: {prompt[:50]}...")
             
             # İçerik üret
             try:
-                response = self.model.generate_content(prompt)
-                logger.info("Successfully generated content")
+                response = self.story_model.generate_content(prompt)
+                logger.info("Successfully generated story content")
             except Exception as e:
-                logger.error(f"Error generating content: {str(e)}")
-                raise ValueError(f"Failed to generate content: {str(e)}")
+                logger.error(f"Error generating story content: {str(e)}")
+                raise ValueError(f"Failed to generate story content: {str(e)}")
             
-            # Cevabı döndür
+            # Cevabı döndür ve işle
             try:
-                # Response'u JSON formatında al
                 if hasattr(response, 'text'):
                     raw_text = response.text
-                    logger.info(f"Raw response: {raw_text}")
+                    logger.info(f"Raw response: {raw_text[:100]}...")
                     
                     # JSON formatına dönüştür
                     parsed_json = extract_json_from_response(raw_text)
                     logger.info(f"Successfully parsed JSON content")
-                    logger.info(f"Parsed output: {json.dumps(parsed_json, indent=2)}")
-                    return parsed_json
+                    
+                    # Çıktıyı yapılandır (görsel fikri kaldırıldı)
+                    output_data = {
+                        "universe": data['universe'],
+                        "topic": data['topic'],
+                        "level": data['level'],
+                        "story": parsed_json.get("story", ""),
+                        "quiz": parsed_json.get("quiz", [])
+                    }
+                    
+                    # Çıktıyı JSON dosyasına kaydet (ikinci LLM için bellek olarak)
+                    self.save_output_to_file(output_data)
+                    
+                    return output_data
                 else:
                     raise Exception("AI cevabı geçersiz")
             
             except Exception as e:
-                logger.error(f"Error processing response: {str(e)}")
+                logger.error(f"Error processing story response: {str(e)}")
                 logger.error(f"Response object: {str(response)}")
-                raise ValueError(f"Invalid response format: {str(e)}")
+                raise ValueError(f"Invalid story response format: {str(e)}")
 
         except Exception as e:
-            logger.error(f"Error in generate_content: {str(e)}")
-            raise ValueError(f"Failed to generate content: {str(e)}")
+            logger.error(f"Error in generate_story: {str(e)}")
+            raise ValueError(f"Failed to generate story: {str(e)}")
+    
+    def save_output_to_file(self, output_data):
+        """Çıktıyı JSON dosyasına kaydeder (ikinci LLM için bellek)"""
+        try:
+            with open("data/last_story_output.json", "w", encoding="utf-8") as f:
+                json.dump(output_data, f, indent=4, ensure_ascii=False)
+            logger.info("Saved story output to file for future reference")
         except Exception as e:
-            logger.error(f"Error generating content: {str(e)}")
-            raise
+            logger.error(f"Error saving output to file: {str(e)}")
+    
+    def evaluate_answers(self, answers):
+        """
+        İkinci LLM: Öğrencinin cevaplarını değerlendirir
+        """
+        try:
+            # Son hikaye çıktısını yükle (ikinci LLM için bellek)
+            try:
+                with open("data/last_story_output.json", "r", encoding="utf-8") as f:
+                    story_data = json.load(f)
+                logger.info("Loaded previous story data for evaluation context")
+            except Exception as e:
+                logger.error(f"Error loading story data: {str(e)}")
+                story_data = {"universe": "Bilinmiyor", "topic": "Bilinmiyor", "level": "Bilinmiyor"}
+            
+            # Soruları ve cevapları birleştir
+            sorular_ve_cevaplar = ""
+            quiz = story_data.get("quiz", [])
+            
+            for i, (question, answer) in enumerate(zip(quiz, answers.values()), 1):
+                soru_metni = question.get("question", f"Soru {i}")
+                sorular_ve_cevaplar += f"Soru {i}: {soru_metni}\nCevabın: {answer}\n\n"
+            
+            # Değerlendirme şablonunu doldur
+            eval_prompt = self.evaluation_template\
+                .replace("{{evren}}", story_data.get("universe", "Bilinmiyor"))\
+                .replace("{{konu}}", story_data.get("topic", "Bilinmiyor"))\
+                .replace("{{seviye}}", story_data.get("level", "Bilinmiyor"))\
+                .replace("{{sorular_ve_cevaplar}}", sorular_ve_cevaplar)
+            
+            logger.info(f"Evaluating answers with prompt: {eval_prompt[:100]}...")
+            
+            # Değerlendirme yap
+            try:
+                response = self.evaluation_model.generate_content(eval_prompt)
+                logger.info("Successfully generated evaluation")
+            except Exception as e:
+                logger.error(f"Error generating evaluation: {str(e)}")
+                raise ValueError(f"Failed to generate evaluation: {str(e)}")
+            
+            # Değerlendirme sonucunu döndür
+            if hasattr(response, 'text'):
+                evaluation_text = response.text
+                logger.info(f"Evaluation response: {evaluation_text[:100]}...")
+                return evaluation_text
+            else:
+                raise Exception("AI değerlendirme cevabı geçersiz")
+                
+        except Exception as e:
+            logger.error(f"Error in evaluate_answers: {str(e)}")
+            raise ValueError(f"Failed to evaluate answers: {str(e)}")
+    
+    def generate_content(self, data):
+        """
+        Geriye dönük uyumluluk için eski fonksiyonu koruyoruz
+        """
+        return self.generate_story(data)
 
 
 if __name__ == '__main__':
     api = GeminiAPI()
+    
+    # Test hikaye oluşturma
     test_data = {
-        'universe': 'Science',
-        'topic': 'Photosynthesis',
-        'level': '5'
+        'universe': 'Minecraft',
+        'topic': 'Enerji dönüşümü',
+        'level': '6'
     }
     
     try:
-        result = api.generate_content(test_data)
-        print("Result:", result)
+        # Hikaye oluştur
+        story_result = api.generate_story(test_data)
+        print("\n🧠 Hikaye Sonucu:\n")
+        print(json.dumps(story_result, indent=4, ensure_ascii=False))
+        
+        # Test cevapları değerlendir
+        test_answers = {
+            'cevap1': 'Demir cevherini eritmek için.',
+            'cevap2': 'Isı enerjisi barındırır. Su ile temas edince obsidyen oluşur.',
+            'cevap3': 'Kimyasal enerji ışık enerjisine dönüşür.'
+        }
+        
+        evaluation_result = api.evaluate_answers(test_answers)
+        print("\n📊 Değerlendirme Sonucu:\n")
+        print(evaluation_result)
+        
     except Exception as e:
         print("Error:", str(e))
